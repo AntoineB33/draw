@@ -1,0 +1,1615 @@
+from tkinter import *
+from tkinter import ttk
+import re
+import threading
+import time as t
+import pickle,os,shutil
+from tkinter.ttk import Scrollbar
+from tkinter.constants import *
+import platform
+from pynput.keyboard import Key, Listener
+import keyboard
+from copy import deepcopy as deep
+import vlc
+from pytube import YouTube
+from urllib import request
+import selenium
+from selenium import webdriver
+from selenium.webdriver.firefox.options import Options
+import tkinter as tk
+import ffmpeg
+import bisect
+import re
+haut = 30                          # Longueur d'un côté d'une case
+larg=150
+ncol=7
+ntcol=7
+fol=1
+aft=2
+bef=3
+url=6
+pers=4
+mus=5
+namera=0
+ligne=1
+ecart=1
+width=-1
+bul=[]
+height=0
+fen = Tk()
+"""with open('savetri.txt','wb')as fp:
+    pickle.dump(({'':[]},[-2],-1,''),fp)"""
+with open('savetri.txt','rb')as fp:
+    save,rem,remv,fn,searchi=pickle.load(fp)
+b=len(save[fn])
+canv0=Canvas(fen,height=1)
+canv0.pack(fill=X)
+
+canvf = Frame(fen,height=1)
+canvf.columnconfigure(0,weight=1)
+canvf.rowconfigure(0,weight=1)
+canvf.pack(fill=X)
+
+scroll0 = Scrollbar(canvf,orient=HORIZONTAL)
+scroll0.grid(column=0,row=1,sticky=EW)
+scroll0.grid_forget()
+
+canv = Canvas(canvf,xscrollcommand=scroll0.set)
+canv.grid(column=0,row=0,sticky=N+E+W+S)
+
+"""canv=Canvas(fen,height=1)
+canv.pack(fill=X)"""
+nbcat,lmenu,lmenutl={},{},{}
+listok=False
+for i,e in save.items():
+    lmenu[i]=[{}for j in range(ncol)]
+    lmenutl[i]=[1]*len(e)
+for i,e in save.items():
+    nbcat[i]={}
+    for lig in range(len(e)):
+        if lig:
+            for col in range(ncol):
+                 for k in save[i][lig][col].split(';'):
+                     if k:
+                         if k.startswith('/n'):
+                             k=k[2:]
+                         if k in lmenu[fn][col]:
+                             lmenu[fn][col][k]+=1
+                         else:
+                             lmenu[fn][col][k]=1
+        must=save[i][lig][mus].split(';')
+        perst=save[i][lig][pers].split(';')
+        for q,x in enumerate([must,perst]):
+            supx=[]
+            for d,e in enumerate(x):
+                if e:
+                    if e in x[:d]:
+                        supx.append(d)
+                    else:
+                        if e.startswith('/n'):
+                            e=e[2:]
+                        if e:
+                            if e in nbcat:
+                                nbcat[i][e][0]+=1
+                            else:
+                                nbcat[i][e]=[1]
+                        else:
+                            supx.append(d)
+            if supx:
+                supx2=[]
+                for j,k in enumerate(x):
+                    if j==supx[0]:
+                        del supx[0]
+                    else:
+                        x2.append(k)
+                save[i][lig][[mus,pers][q]]=';'.join(x2)
+lig,col=1,0
+def go(res,rest):
+    global adeep,lsavec,lsavecn,tristop,save,g,ltrie,b,error,nbcat,cases,savep,fn,lpos
+    if tristop:
+        with open('savecal.txt','wb')as fp:
+            pickle.dump(lsavecn,fp)
+        with open('ssavecal.txt','wb')as fp:
+            pickle.dump(save,fp)
+        return 0
+    if rest:
+        ltriei=[]
+        for ki in rest:
+            for i in g[ki][1]:
+                if i not in res:
+                    break
+            else:
+                ltriei.append(ki)
+        if lsavec:
+            if adeep<len(lsavec):
+                indeb=lsavec[adeep]
+            elif adeep==len(lsavec):
+                lsavec=None
+                indeb=0
+        else:
+            indeb=0
+        if not ltriei:
+            tristop=True
+            print([[j for j in g[i][0]]for i in res],'\n')
+            print([[j for j in g[i][0]]for i in rest])
+            print('paramètres de tri contradictoires')
+        for d,i in enumerate(ltriei[indeb:],indeb):
+            if tristop:
+                with open('savecal.txt','wb')as fp:
+                    pickle.dump(lsavecn,fp)
+                with open('ssavecal.txt','wb')as fp:
+                    pickle.dump(save,fp)
+                return 0
+            if adeep<len(lsavecn):
+                lsavecn[adeep]=d
+            else:
+                lsavecn.append(d)
+            adeep+=1
+            go(res+[i],[hj for hj in rest if hj!=i])
+            adeep-=1
+    else:
+        ltrie=[]
+        errori=0
+        plin=0
+        for i in res:
+            for j in g[i][0]:
+                for k in save[fn][j][mus].split(';')+save[fn][j][pers].split(';'):
+                    if k.startswith('/n'):
+                        k=k[2:]
+                    if k:
+                        errorii=plin-nbcat[fn][k][1]-nbcat[fn][k][2]
+                        if errorii>0 and nbcat[fn][k][3]:
+                            errorii-=1
+                            nbcat[fn][k][3]-=1
+                        errori+=abs(errorii)
+                        nbcat[fn][k][1]=plin
+                        if not nbcat[fn][k][4]:
+                            nbcat[fn][k][4]=plin
+                ltrie.append(j)
+                plin+=1
+        for i in nbcat[fn]:
+            errorii=nbcat[fn][i][0]+plin-nbcat[fn][i][1]-nbcat[fn][i][2]
+            if errorii>0 and nbcat[fn][i][3]:
+                errorii-=1
+            errori+=abs(errorii)
+        if errori<error or error==-1:
+            if ltrie!=list(range(b)):
+                if lpos:
+                    calpos(searchi[fn][0])
+                    metasize(ltrie,fni=fnp,savebeftr=savep,tcal=False)
+                else:
+                    metasize(ltrie,fni=fnp,savebeftr=savep)
+            elif error==-1:
+                return 0
+            error=errori
+if remv>-1:
+    remv=max([int(x)for x in save[fn][rem[0]][rem[1]].split(';')if x])
+tristop2=False
+class AsyncZipt(threading.Thread):
+    def __init__(self):
+        threading.Thread.__init__(self)
+    def run(self):
+        global tristop2,fnp,g,ltrie,error,nbcat,savep
+        tristop2=True
+        for j in range(ncol):
+            cases[-1][j].delete("1.0", END)
+        savep=deep(save[fn])
+        fnp=fn
+        for i in nbcat[fn].keys():
+            nbcati=nbcat[fn][i][0]
+            nbcat[fn][i]=[nbcati,0,b//nbcati,b%nbcati,0]
+        g=[[[u],[]]for u in range(b)]
+        for i in range(b):
+            afti=save[fn][i][aft]
+            for j in afti.split(';'):
+                if j:
+                    g[i][1].append(int(j))
+            befi=save[fn][i][bef]
+            if befi and i not in g[int(befi)][1]:
+                g[int(befi)][1].append(i)
+        for i in range(len(g)):
+            if i>=len(g):
+                break
+            while g[i]and save[fn][g[i][0][0]][fol]:
+                posi=save[fn][g[i][0][0]][fol]
+                if posi:
+                    posi=int(posi)
+                    for j in range(len(g)):
+                        if g[j]and i!=j and posi==g[j][0][-1]:
+                            g[j][0]+=g[i][0]
+                            g[j][1]=list(set(g[i][1]+g[j][1]))
+                            g[i]=None
+                            i=j
+                            break
+        g=list(filter(None,g))
+        bg=len(g)
+        for i in range(bg):
+            gi=[]
+            for j in g[i][1]:
+                for k in range(bg):
+                    if j in g[k][0]:
+                        gi=list(set(gi+[k]))
+                        break
+            g[i][1]=list(gi)
+        error=-1
+        go([],list(range(bg)))
+        tristop2=False
+        print('tri fini')
+with open('ssavecal.txt','wb')as fp:
+    pickle.dump([],fp)
+def trier():
+    global tristop,tristop2,lsavec,lsavecn,adeep
+    tristop=True
+    while tristop2:
+        pass
+    tristop=False
+    adeep=0
+    lsavecn=[]
+    with open('ssavecal.txt','rb')as fp:
+        if pickle.load(fp)==save:
+            with open('savecal.txt','rb')as fp:
+                lsavec=pickle.load(fp)
+        else:
+            lsavec=None
+    backgroundt = AsyncZipt()
+    backgroundt.start()
+butt=Button(canv0,text='trier',command=trier,width=15)
+butt.grid(row=0,column=1)
+def stop():
+    global tristop
+    tristop=True
+butt=Button(canv0,text='stop trie',command=stop,width=15)
+butt.grid(row=0,column=2)
+def fvideo():
+    startvid()
+butt=Button(canv0,text='video',command=fvideo,width=15)
+butt.grid(row=0,column=3)
+def ctrff(event):
+    bAsyncctrf=Asyncctrf()
+    bAsyncctrf.start()
+class Asyncctrf(threading.Thread):
+    def __init__(self):
+        threading.Thread.__init__(self)
+    def run(self):
+        te=ctrf.get('1.0',END)[:-1]
+        tex=''
+        for i in range(1,b):
+            for j in range(ncol):
+                if re.search(te,save[fn][i][j]):
+                    tex+=f', {i}:{j}'
+        ctrl.config(text=tex.lstrip(', '))
+ctrf=Text(canv0,width=20,height=1)
+ctrf.grid(row=0,column=4)
+ctrf.bind("<Key>",ctrff)
+ctrl=Label(canv0,width=20,height=1)
+ctrl.grid(row=0,column=5)
+sv0,sv={},[]
+dic={}
+focpass=False
+def erlist():
+    global frr,listok
+    print('listok',listok)
+    if listok:
+        frr.destroy()
+        listok=False
+def xviewf(*event):
+    can.xview(*event)
+    canv.xview(*event)
+def focusf(event):
+    global frr,listok,lig,col
+    erlist()
+    cases[lig][col].config(bg='white')
+    lig,col=[int(i)for i in str(event.widget).rsplit('.',1)[1].split(':')]
+    cases[lig][col].config(bg='gray')
+    if lig:
+        while cases[lig][col].winfo_rooty()<fr.winfo_rooty():
+            can.yview('scroll',-1,'units')
+            t.sleep(.05)
+        while lig>=b or cases[lig][col].winfo_rooty()>fen.winfo_screenheight()-80:
+            scrollf('scroll',1,'units')
+            t.sleep(.05)
+    while cases[lig][col].winfo_rootx()>fen.winfo_rootx()+fen.winfo_width() or cases[lig][col].winfo_rootx()+cases[lig][col].winfo_width()>fen.winfo_rootx()+fen.winfo_width():
+        xviewf('scroll',1,'units')
+        t.sleep(.05)
+    while cases[lig][col].winfo_rootx()<fen.winfo_rootx():
+        xviewf('scroll',-1,'units')
+        t.sleep(.05)
+class Asyncfocus(threading.Thread):
+    def __init__(self,event):
+        threading.Thread.__init__(self)
+        self.event=event
+    def run(self):
+        focusf(self.event)
+def focus(event):
+    global bgfocus
+    try:
+        if bgfocus.is_alive():
+            return 0
+    except:
+        pass
+    bgfocus=Asyncfocus(event)
+    bgfocus.start()
+"""scrolling_area = Scrolling_Area(fen,height=fen.winfo_screenheight()-80)
+#scrolling_area.pack(expand=1, fill=BOTH)
+scrolling_area.grid(row=2,column=0,sticky='nw')
+fr = Frame(scrolling_area.innerframe)
+fr.pack()"""
+
+fr0 = Frame(fen)
+fr0.columnconfigure(0,weight=1)
+fr0.rowconfigure(0,weight=1)
+fr0.pack(fill=BOTH,expand=1)
+
+scroll = Scrollbar(fr0,orient=HORIZONTAL)
+scroll.grid(column=0,row=1,sticky=EW)
+scrollv = Scrollbar(fr0,orient=VERTICAL)
+scrollv.grid(column=1,row=0,sticky=NS)
+
+can = Canvas(fr0,xscrollcommand=scroll.set,yscrollcommand=scrollv.set)
+can.grid(column=0,row=0,sticky=N+E+W+S)
+
+width,height=0,0
+
+
+def scrollf(*event):
+    global bgscroll
+    try:
+        if bgscroll.is_alive():
+            return 0
+    except:
+        pass
+    bgscroll=AsyncScroll(*event)
+    bgscroll.start()
+
+class AsyncScroll(threading.Thread):
+    def __init__(self,*event):
+        threading.Thread.__init__(self)
+        self.event=event
+    def run(self):
+        event=list(self.event)
+        can.yview(*event)
+        while scrollv.get()[1]==1:
+            global ligne
+            ligne+=1
+            exec(f'bul.append(Button(fr,text=ligne,name=str(ligne),command=lambda:lsel({ligne})))')
+            bul[-1].grid(row=ligne,column=0)
+            bul[-1].bind("<Button-3>",rightclickn)
+            lignei=ligne
+            while lignei>1:
+                lignei/=10
+            if lignei==1:
+                bu0.config(width=bu0.cget('width')+1)
+            cases.append([])
+            for i in range(ncol):
+                cases[ligne].append(Text(fr,width=cases[ligne-1][i].cget('width'),height=1,name=f'{ligne}:{i}'))
+                cases[ligne][-1].grid(row=ligne,column=i+1)
+                cases[ligne][-1].bind("<Button-1>",focus)
+                cases[ligne][-1].bind("<Button-3>",rightclick)
+                cases[ligne][-1].bind("<Key>",edit)
+            can.config(scrollregion=can.bbox("all"))
+
+scroll.config(command=xviewf)
+scrollv.config(command=scrollf)
+
+fr = Frame(can)
+fr.columnconfigure(0,weight=1)
+fr.rowconfigure(0,weight=1)
+fr.pack(fill=BOTH,expand=1)
+
+
+
+bu1=0
+def reduce(minus=False):
+    global remv,b,lpos
+    if minus:
+        jus=-1
+    else:
+        jus=remv
+    supp=0
+    for i in range(b-1,jus,-1):
+        for j in save[fn][i]:
+            if j:
+                break
+        else:
+            supp+=1
+            continue
+        break
+    if supp:
+        save[fn]=save[fn][:-supp]
+        if lpos:
+            lpos=lpos[:-supp]
+        b-=supp
+def grow(bnext):
+    global save,cases,ligne,ncol,lpos,b,i2l
+    diffe=bnext-b
+    save[fn]+=[[''for i in range(ncol)]for j in range(diffe)]
+    lmenutl[fn]+=[1 for j in range(diffe)]
+    if bnext>ligne:
+        for ligne in range(b,bnext):
+            cases.append([])
+            for i in range(ncol):
+                cases[ligne].append(Text(can,width=20,height=1,name=f'{ligne}:{i}'))
+                cases[ligne][-1].grid(row=ligne,column=i+1)
+                cases[ligne][-1].bind("<Button-1>",focus)
+                cases[ligne][-1].bind("<Button-3>",rightclick)
+                cases[ligne][-1].bind("<Key>",edit)
+    if lpos:
+        lpos+=list(range(b,bnext))
+    b=bnext
+def frem():
+    global remv
+    remv=b-1
+    for i in range(b):
+        for j in[fol,aft,bef]:
+            for k in save[fn][i][j].split(';'):
+                if k and int(k)>remv:
+                    remv=int(k)
+                    rem=[i,j]
+    if remv==b-1:
+        remv=-1
+    else:
+        b=remv
+buli=0
+def intercal(e):
+    global buli,save,cases,ncol,lpos,b,fol,aft,bef,remv,b
+    if e>=b:
+        if buli>=b:
+            return 0
+        grow(e+1)
+    elif buli>=b:
+        buli=b
+        grow(b+1)
+    if lpos:
+        bulic=lpos.index(buli)
+        lpos.insert(e,buli)
+        if e<bulic:
+            del lpos[bulic+1]
+            for i in range(b):
+                for j in[fol,aft,bef]:
+                    kj=[]
+                    for k in save[fn][lpos[i]][j].split(';'):
+                        if k.startswith('\n'):
+                            k=k[2:]
+                        if k:
+                            kj.append(str(lpos.index(int(k))))
+                    cases[i][j].delete("1.0", END)
+                    cases[i][j].insert(END,';'.join(kj))
+                if e<=i<=bulic:
+                    for j in[0,url,mus,pers]:
+                        cases[i][j].delete("1.0", END)
+                        cases[i][j].insert(END,save[fn][lpos[i]][j])
+        else:
+            del lpos[bulic]
+            for i in range(b):
+                for j in[fol,aft,bef]:
+                    kj=[]
+                    for k in save[fn][lpos[i]][j].split(';'):
+                        if k.startswith('\n'):
+                            k=k[2:]
+                        if k:
+                            kj.append(str(lpos.index(int(k))))
+                    cases[i][j].delete("1.0", END)
+                    cases[i][j].insert(END,';'.join(kj))
+                if bulic<=i<=e:
+                    for j in[0,url,mus,pers]:
+                        cases[i][j].delete("1.0", END)
+                        cases[i][j].insert(END,save[fn][lpos[i]][j])
+    else:
+        athrr=True
+        while athr:
+            t.sleep(.1)
+        i2lic=i2l[fn][e]
+        i2l[fn][e]=i2l[fn][buli]
+        i2l[fn][buli]=i2lic
+        if uf1:
+            if uf1==e:
+                uf1=buli
+            elif uf1==buli:
+                uf1=e
+        i2l[fn].insert(e,i2l[fn][buli])
+        save[fn].insert(e,save[fn][buli])
+        if e<buli:
+            if fn in urlligne:
+                try:
+                    eu=urlligne[fn].index(e)
+                    ye=False
+                    if urlligne[fn][eu+1]==e+1:
+                        urlligne[fn].insert(eu+1,e+1)
+                except:
+                    ye=True
+                    bisect.insort(urlligne[fn],e)
+                try:
+                    urlligne[fn].remove(buli)
+                    if ye:
+                        bisect.insort(urlligne[fn],e)
+                except:
+                    pass
+            del save[fn][buli+1]
+            del i2l[fn][buli+1]
+            for i in range(b):
+                for j in[fol,aft,bef]:
+                    kj=[]
+                    for k in save[fn][i][j].split(';'):
+                        if k.startswith('\n'):
+                            k=k[2:]
+                        if k:
+                            k=int(k)
+                            if e<=k<buli:
+                                kj.append(str(k+1))
+                            elif k==buli:
+                                kj.append(str(e))
+                            else:
+                                kj.append(str(k))
+                    save[fn][i][j]=';'.join(kj)
+                    cases[i][j].delete("1.0", END)
+                    cases[i][j].insert(END,save[fn][i][j])
+                if e<=i<=buli:
+                    for j in[0,url,mus,pers]:
+                        cases[i][j].delete("1.0", END)
+                        cases[i][j].insert(END,save[fn][i][j])
+        else:
+            if fn in urlligne:
+                try:
+                    eu=urlligne[fn].index(e)
+                    ye=False
+                    if urlligne[fn][eu+1]==e+1:
+                        urlligne[fn].insert(eu+1,e+1)
+                except:
+                    ye=True
+                    bisect.insort(urlligne[fn],e)
+                try:
+                    urlligne[fn].remove(buli)
+                    if ye:
+                        bisect.insort(urlligne[fn],e)
+                except:
+                    pass
+            del save[fn][buli]
+            del i2l[fn][buli]
+            for i in range(b):
+                for j in[fol,aft,bef]:
+                    kj=[]
+                    for k in save[fn][i][j].split(';'):
+                        if k.startswith('\n'):
+                            k=k[2:]
+                        if k:
+                            k=int(k)
+                            if buli<k<e:
+                                kj.append(str(k-1))
+                            elif k==buli:
+                                kj.append(str(e-1))
+                            else:
+                                kj.append(str(k))
+                    save[fn][i][j]=';'.join(kj)
+                    cases[i][j].delete("1.0", END)
+                    cases[i][j].insert(END,save[fn][i][j])
+                if buli<=i<=e:
+                    for j in[0,url,mus,pers]:
+                        cases[i][j].delete("1.0", END)
+                        cases[i][j].insert(END,save[fn][i][j])
+        athrr=True
+    buli=0
+    reduce()
+def echanger(e):
+    global buli,save,cases,ncol,lpos,b,remv,i2l,lim
+    if e>=b or buli>=b:
+        if e>=b and buli>=b:
+            return 0
+        grow(max(e,buli)+1)
+    if lpos:
+        bulic=lpos.index(buli)
+        lposic=lpos[e]
+        lpos[e]=buli
+        lpos[bulic]=lposic
+        for j in[0,url,mus,pers]:
+            cases[e][j].delete("1.0", END)
+            cases[e][j].insert(END,save[fn][buli][j])
+            cases[bulic][j].delete("1.0", END)
+            cases[bulic][j].insert(END,save[fn][lposic][j])
+        for i in range(b):
+            for j in[fol,aft,bef]:
+                kj=[]
+                for k in save[fn][lpos[i]][j].split(';'):
+                    if k.startswith('\n'):
+                        k=k[2:]
+                    if k:
+                        kj.append(str(lpos.index(int(k))))
+                cases[i][j].delete("1.0", END)
+                cases[i][j].insert(END,';'.join(kj))
+    else:
+        saveic=deep(save[fn][e])
+        save[fn][e]=deep(save[fn][buli])
+        save[fn][buli]=deep(saveic)
+        athrr=True
+        while athr:
+            t.sleep(.1)
+        if fn in urlligne:
+            if e in urlligne[fn]:
+                if buli not in urlligne[fn]:
+                    bisect.insort(urlligne[fn],buli)
+            elif buli in urlligne[fn]:
+                bisect.insort(urlligne[fn],e)
+        i2lic=i2l[fn][e]
+        i2l[fn][e]=i2l[fn][buli]
+        i2l[fn][buli]=i2lic
+        if uf1:
+            if uf1==e:
+                uf1=buli
+            elif uf1==buli:
+                uf1=e
+        athrr=True
+        for j in[0,url,mus,pers]:
+            cases[e][j].delete("1.0", END)
+            cases[e][j].insert(END,save[fn][e][j])
+            cases[buli][j].delete("1.0", END)
+            cases[buli][j].insert(END,save[fn][buli][j])
+        for i in range(b):
+            for j in[fol,aft,bef]:
+                kj=[]
+                for k in save[fn][i][j].split(';'):
+                    if k:
+                        k=int(k)
+                        if k==e:
+                            kj.append(str(buli))
+                        elif k==buli:
+                            kj.append(str(e))
+                        else:
+                            kj.append(str(k))
+                save[fn][i][j]=';'.join(kj)
+                cases[i][j].delete("1.0", END)
+                cases[i][j].insert(END,save[fn][i][j])
+        lim[fn]=0
+        for i in i2l[fn]:
+            if not i[1]:
+                lim[fn]+=1
+    buli=0
+    reduce()
+def lsel(ligb):
+    global buli
+    if lpos and ligb<b:
+        buli=lpos[ligb]
+    else:
+        buli=ligb
+lpos=None
+def calpos(col):
+    global searchi,lpos
+    x=cases[0][col].get('1.0',END)[:-1]
+    if x and x.split(';')[-1]in lmenu[fn][col]or col in searchi[fn]:
+        if col in searchi[fn]:
+            searchi[fn].remove(col)
+        if x and x.split(';')[-1]in lmenu[fn][col]:
+            searchi[fn]=[col]+searchi[fn]
+            lense=len(searchi[fn])
+            lposi=[[[]for j in range(len(cases[0][searchi[fn][i]].get('1.0',END)[:-1].split(';')))]for i in range(lense)]
+            for i in range(b):
+                for k in range(lense):
+                    ro=cases[0][searchi[fn][k]].get('1.0',END)[:-1].split(';')
+                    lenro=len(ro)
+                    for j in range(1,lenro+1):
+                        if ro[-j] in save[fn][i][searchi[fn][k]].split(';'):
+                            lposi[k][j-1].append(i)
+                            break
+                    else:
+                        continue
+                    break
+            lpos=[]
+            for i in lposi:
+                for k in i:
+                    lpos+=k
+            if lpos:
+                lpos+=[i for i in range(b)if i not in lpos]
+                metasize(lpos)
+        else:
+            lpos=[]
+            metasize(list(range(b)),mod=True)
+def metasize(newp,fni=fn,mod=False,savebeftr=None,tcal=True):
+    if mod:
+        savei=deep(save[fni])
+    else:
+        if savebeftr:
+            athrr=True
+            while athr:
+                t.sleep(.1)
+            save2=deep(savebeftr)
+            i2l[fni]=sorted([newp.index(i)for i in i2l[fni]])
+            if fni in urlligne:
+                urlligne[fni].sort()
+            if uf1:
+                i2thr=newp.index(uf1)
+        else:
+            save2=deep(save[fni])
+        savei=[]
+        for i in range(len(save[fni])):
+            savei.append(['']*ncol)
+            for j in[0,url,mus,pers]:
+                savei[-1][j]=save2[newp[i]][j]
+            for j in[fol,aft,bef]:
+                ind=save2[newp[i]][j].split(';')
+                if ind!=['']:
+                    savei[-1][j]=';'.join([str(newp.index(int(ju)))for ju in ind])
+    if tcal and fni==fn:
+        for i in range(b):
+            for j in range(ncol):
+                cases[i][j].config(height=lmenutl[fn][newp[i]])
+                cases[i][j].delete("1.0", END)
+                cases[i][j].insert(END,savei[i][j])
+    if savebeftr:
+        lmenutl[fni]=[lmenutl[fni][newp[i]]for i in range(b)]
+        save[fni]=deep(savei)
+        athrr=True
+def adjust_size_chg():
+    for i in range(b):
+        widget_height =1
+        for j in range(ncol):
+            widget_height=max(widget_height,float(cases[i][j].index(END))-1)
+        lmenutl[fn][i]=widget_height
+        for j in range(ncol):
+            cases[i][j].config(height=widget_height)
+    for j in range(ncol):
+        widget_width =3
+        for i in range(b):
+            widget_width2 = 3
+            for line in save[fn][i][j].split("\n"):
+                widget_width=max(widget_width,len(line)+1)
+        for i in range(ligne+1):
+            cases[i][j].config(width=widget_width)
+    can.config(scrollregion=can.bbox("all"))
+def keysave(x):
+    global fn,bu1,b
+    bu1=False
+    fnb=fn
+    fn=x
+    if b==1:
+        del save[fnb]
+        del nbcat[fnb]
+        del lmenu[fnb]
+        del lmenutl[fnb]
+        del i2l[fnb]
+    if not fn in save:
+        save[fn]=[['']*ncol]
+        i2l[fn]=[]
+        nbcat[fn]={}
+        lmenu[fn]=[{}for i in range(ncol)]
+        lmenutl[fn]=[1]*ncol
+        widget_width=max([len(i)for i in save.keys()])
+        for line in x.split("\n"):
+            widget_width=max(widget_width,len(line))
+        if widget_width>cases[0][ncol].cget('width'):
+            cases[0][ncol].config(width=widget_width+1)
+        if x.count('\n')>max([i.count('/n')for i in save.keys()]):
+            cases[0][ncol].config(height=x.count('\n')+1)
+    bav=b
+    b=len(save[fn])
+    frem()
+    bmax=max(b,bav)
+    lpos=None
+    for i in range(bmax):
+        for j in range(ncol):
+            if i<bav:
+                cases[i][j].delete("1.0", END)
+            if i<b:
+                cases[i][j].insert(END,save[fn][i][j])
+    adjust_size_chg()
+    can.yview('moveto',0)
+    xviewf('moveto',0)
+def editf(x):
+    global lig,col,remv,rem,uf1,bdownload,listok
+    if col==ncol:
+        xc=fn
+        ligi=lig
+    elif lig>=b:
+        xc=''
+        ligi=lig
+    else:
+        if lpos:
+            ligi=lpos[lig]
+        else:
+            ligi=lig
+        xc=save[fn][ligi][col]
+    widget_width = 3
+    for line in x.split("\n"):
+        widget_width=max(widget_width,len(line)+1)
+    widget_width_comp=cases[lig][col].cget('width')
+    if widget_width>widget_width_comp:
+        for i in range(ligne+1):
+            cases[i][col].config(width=widget_width)
+        while cases[lig][col].winfo_rootx()>fen.winfo_rootx()+fen.winfo_width() or cases[lig][col].winfo_rootx()+cases[lig][col].winfo_width()>fen.winfo_rootx()+fen.winfo_width():
+            xviewf('scroll',1,'units')
+            t.sleep(.05)
+    elif lig<b and widget_width<widget_width_comp:
+        widget_widthd=widget_width
+        for i in range(b):
+            if i!=ligi:
+                for line in save[fn][i][col].split("\n"):
+                    widget_widthd=max(widget_widthd,len(line)+1)
+                if widget_widthd==widget_width_comp:
+                    break
+        for i in range(ligne+1):
+            cases[i][col].config(width=widget_widthd)
+    widget_height = float(cases[lig][col].index(END))-1
+    widget_height_comp=cases[lig][col].cget('height')
+    if lig<b:
+        lmenutl[fn].append(1)
+    if widget_height>widget_height_comp:
+        lmenutl[fn][ligi]=widget_height
+        for i in range(ncol):
+            cases[lig][i].config(height=widget_height)
+        while cases[lig][col].winfo_rooty()+cases[lig][col].winfo_height()>fen.winfo_screenheight()-80:
+            scrollf('scroll',1,'units')
+    elif widget_height<widget_height_comp:
+        widget_height2 =xc.count('\n')+1
+        if widget_height2==cases[lig][col].cget('height'):
+            widget_heightd=widget_height
+            for i in range(ncol):
+                widget_heightd=max(widget_heightd,float(cases[lig][i].index(END))-1)
+                if widget_heightd==widget_height_comp:
+                    break
+            lmenutl[fn][ligi]=widget_heightd
+            for i in range(ncol):
+                cases[lig][i].config(height=widget_heightd)
+    xs=x.split(';')
+    if lig:
+        if lig<b:
+            for i in xc.split(';'):
+                if i.startswith('/n'):
+                    i=i[2:]
+                if i.split()and i in lmenu[fn][col]:
+                    print('supp',i,lmenu[fn][col][i])
+                    lmenu[fn][col][i]-=1
+                    if not lmenu[fn][col][i]:
+                        print('del')
+                        del lmenu[fn][col][i]
+        for i in x.split(';'):
+            if i:
+                if i.startswith('/n'):
+                    i=i[2:]
+                if i in lmenu[fn][col]:
+                    print('add',i,lmenu[fn][col][i])
+                    lmenu[fn][col][i]+=1
+                else:
+                    print('create',i)
+                    lmenu[fn][col][i]=1
+        if remv>-1 and ligi==rem[0]and col==rem[1]:
+            if col in[fol,aft,bef]:
+                save[fn][ligi][col]=';'.join([str(lpos[int(u)])for u in x.s if u])
+            else:
+                save[fn][ligi][col]=x
+            if x and int(x)>remv:
+                remv=int(x)
+                grow(remv+1)
+            elif not x or x and int(x)<remv:
+                frem()
+                reduce()
+        elif x:
+            if lig>=b:
+                nbaj=lig+1-b
+                remv=-1
+            else:
+                nbaj=0
+            if col in[fol,aft,bef]:
+                maxi=max([b+nbaj-1]+[int(u)for u in xs if u])
+                if maxi>=b+nbaj:
+                    remv=maxi
+                    rem=[ligi,col]
+                    nbaj=maxi+1-b
+            if nbaj:
+                grow(b+nbaj)
+            urlv=False
+            if col==url:
+                try:
+                    print('col=url')
+                    if x.startswith('a_'):
+                        name='a'+x[2:]+'.mp4'
+                    elif x.startswith('https://www.y'):
+                        name=x.split('&',1)[0].split('?v=',1)[1]+'.mp4'
+                    else:
+                        name=x.rsplit('videos/',1)[1].rsplit('?',1)[0]+'.mp4'
+                    print(name)
+                    athrr=True
+                    while athr:
+                        t.sleep(.1)
+                    if uf1 and uf1==ligi:
+                        urlligne[fn].insert(0,ligi)
+                        i2thr='e'
+                    else:
+                        print(urlligne)
+                        if fn in urlligne:
+                            for gh in urlligne[fn]:
+                                if int(gh)>ligi:
+                                    urlv=True
+                                    break
+                                if int(gh)==ligi:
+                                    break
+                            else:
+                                urlv=True
+                            if urlv:
+                                bisect.insort(urlligne[fn],ligi)
+                        else:
+                            urlligne[fn]=[ligi]
+                            urlv=True
+                    athrr=False
+                except Exception as ins:
+                    print('error url edit:',ins)
+                    pass
+            elif col in[mus,pers]:
+                catp=save[fn][ligi][col].split(';')
+                for i in catp:
+                    if i and i not in xs:
+                        nbcat[fn][i][0]-=1
+                        if not nbcat[fn][i][0]:
+                            del nbcat[fn][i]
+                for i in xs:
+                    if i and i not in catp:
+                        if i not in nbcat[fn]:
+                            nbcat[fn][i]=[1]
+                        else:
+                            nbcat[fn][i][0]+=1
+            if lpos and col in[fol,aft,bef]:
+                save[fn][ligi][col]=';'.join([str(lpos[int(u)])for u in xs if u])
+            else:
+                save[fn][ligi][col]=x
+                if urlv:
+                    if not bdownload.is_alive():
+                        bdownload = download()
+                        bdownload.start()
+        else:
+            if col==url:
+                athrr=True
+                while athr:
+                    t.sleep(.1)
+                if uf1 and uf1==ligi:
+                    i2thr='e'
+                else:
+                    for i in len(urlligne[fn]):
+                        if urlligne[fn][i]==col:
+                            del urlligne[fn][i]
+                            break
+                    else:
+                        for i in len(i2l[fn]):
+                            if i2l[fn][i]==col:
+                                del i2l[fn][i]
+                                break
+                athrr=False
+            elif col in[mus,pers]:
+                for i in save[fn][ligi][col].split(';'):
+                    if i:
+                        nbcat[fn][i][0]-=1
+                        if not nbcat[fn][i][0]:
+                            del nbcat[fn][i]
+            save[fn][ligi][col]=''
+            if ligi==b-1:
+                frem()
+                reduce()
+    elif col==ncol:
+        keysave(x)
+    else:
+        save[fn][0][col]=x
+        calpos(col)
+    if listok:
+        frr.destroy()
+        listok=False
+        rightclickf()
+class AsyncEdit(threading.Thread):
+    def __init__(self,event,indexCursor):
+        threading.Thread.__init__(self)
+        self.event=event
+        self.indexCursor=indexCursor
+    def run(self):
+        global bgscroll,col,lig,lmenutl,ligne,cases,searchi,save,ncol,lpos,act,nbcat,remv,rem,b,urlligne,fn,bdownload,download,lmenu
+        event=self.event
+        indexCursor=self.indexCursor
+        c=event.char
+        k=event.keysym
+        if not c:
+            if k=='Up':
+                erlist()
+                cases[lig][col].config(bg='white')
+                lig-=1
+                cases[lig][col].focus_set()
+                cases[lig][col].mark_set("insert", "1."+END)
+                cases[lig][col].config(bg='gray')
+                if lig:
+                    while cases[lig][col].winfo_rooty()<fr.winfo_rooty():
+                        can.yview('moveto',-1,'units')
+                        t.sleep(.05)
+                return 0
+            elif k=='Down':
+                erlist()
+                cases[lig][col].config(bg='white')
+                lig+=1
+                if lig:
+                    while lig>=ligne or cases[lig][col].winfo_rooty()+cases[lig][col].winfo_height()>fen.winfo_screenheight()-80:
+                        scrollf('scroll',1,'units')
+                        try:
+                            if bgscroll.is_alive():
+                                t.sleep(.05)
+                        except:
+                            pass
+                cases[lig][col].focus_set()
+                cases[lig][col].mark_set("insert", "1."+END)
+                cases[lig][col].config(bg='gray')
+                return 0
+            elif k=='Right':
+                erlist()
+                if shift or indexCursor==cases[lig][col].index('end - 1 chars'):
+                    cases[lig][col].config(bg='white')
+                    if col==ncol-1:
+                        col=0
+                        if col:
+                            while cases[lig][col].winfo_rootx()<fen.winfo_rootx():
+                                xviewf('scroll',-1,'units')
+                                t.sleep(.05)
+                        else:
+                            xviewf('moveto',0)
+                    else:
+                        col+=1
+                        while cases[lig][col].winfo_rootx()>fen.winfo_rootx()+fen.winfo_width() or cases[lig][col].winfo_rootx()+cases[lig][col].winfo_width()>fen.winfo_rootx()+fen.winfo_width():
+                            xviewf('scroll',1,'units')
+                            t.sleep(.05)
+                    cases[lig][col].focus_set()
+                    cases[lig][col].mark_set("insert", "1."+END)
+                    cases[lig][col].config(bg='gray')
+                return 0
+            elif k=='Left':
+                erlist()
+                if shift or indexCursor=='1.0':
+                    cases[lig][col].config(bg='white')
+                    if col:
+                        col-=1
+                        if col:
+                            while cases[lig][col].winfo_rootx()<fen.winfo_rootx():
+                                xviewf('scroll',-1,'units')
+                                t.sleep(.05)
+                        else:
+                            xviewf('moveto',0)
+                    else:
+                        col=ncol-1
+                        while cases[lig][col].winfo_rootx()>fen.winfo_rootx()+fen.winfo_width() or cases[lig][col].winfo_rootx()+cases[lig][col].winfo_width()>fen.winfo_rootx()+fen.winfo_width():
+                            xviewf('scroll',1,'units')
+                            t.sleep(.05)
+                    cases[lig][col].focus_set()
+                    cases[lig][col].mark_set("insert", "1."+END)
+                    cases[lig][col].config(bg='gray')
+                return 0
+        x=event.widget.get("1.0",END)[:-1]
+        if col==ncol:
+            keysave(x)
+            return 0
+        if c:
+            if col in[fol,aft,bef]:
+                xi=''
+                for i in x:
+                    if i in';0123456789':
+                        xi+=i
+                if xi!=x:
+                    cases[lig][col].delete("1.0", END)
+                    cases[lig][col].insert(END,xi)
+                    if xi==save[fn][lig][col]:
+                        return 0
+                x=xi
+            editf(x)
+def edit(event):
+    global bgedit,indexCursor
+    try:
+        if bgedit.is_alive():
+            return 0
+    except:
+        pass
+    bgedit = AsyncEdit(event,cases[lig][col].index(INSERT))
+    bgedit.start()
+class editft(threading.Thread):
+    def __init__(self,x):
+        threading.Thread.__init__(self)
+        self.x=x
+    def run(self):
+        editf(self.x)
+def items_selectedn(event):
+    if listbox2.curselection()[0]:
+        echanger(selb)
+    else:
+        intercal(selb)
+    erlist()
+def rightclickn(event):
+    global fr,scrollbar,listbox,listok,frr,frrm,focpass,listbox2,buli,selb
+    selb=int(str(event.widget).rsplit('.',1)[1])
+    erlist()
+    listok=True
+    frr=Frame(fen)
+    frr.place(x=event.widget.winfo_width(),y=event.widget.winfo_y()+fr.winfo_y())
+    langs=['i','e']
+    langs_var=StringVar(value=langs)
+    listbox2=Listbox(frr,listvariable=langs_var,width=2,height=2)
+    listbox2.grid(column=0,row=0)
+    listbox2.bind('<<ListboxSelect>>', items_selectedn)
+def items_selected(event):
+    try:
+        selected_indices=listbox.curselection()
+        x=";".join([listbox.get(i)for i in selected_indices])
+        cases[lig][col].delete("1.0", END)
+        cases[lig][col].insert(END,x)
+        bgeditft=editft(x)
+        bgeditft.start()
+    except:
+        pass
+def rightclickf():
+    global listok,frr
+    if col==ncol:
+        ligi=lig
+        langs=list(save.keys())
+        x=fn
+    else:
+        langs=lmenu[fn][col].keys()
+        if lig<b:
+            if lpos:
+                ligi=lpos[lig]
+            else:
+                ligi=lig
+            x=save[fn][ligi][col]
+        else:
+            ligi=lig
+            x=''
+    if len(langs)<2:
+        return 0
+    if x:
+        langsf=[]
+        langss=[]
+        patt=save[fn][ligi][col].rsplit(';',1)[-1]
+        for i in langs:
+            if i.startswith(patt.lower()):
+                langsf.append(i)
+            else:
+                langss.append(i)
+        if col in[fol,aft,bef]:
+            langs=sorted(langsf,key=int)+sorted(langss,key=int)
+        else:
+            langs=sorted(langsf,key=str.lower)+sorted(langss,key=str.lower)
+    elif col in[fol,aft,bef]:
+        langs=sorted(langs,key=int)
+    else:
+        langs=sorted(langs,key=str.lower)
+    listok=True
+    frr=Frame(fen)
+    widthd=max([len(i)for i in langs])+1
+    if col==ncol:
+        anch='nw'
+        supl=cases[lig][col].winfo_width()
+    else:
+        widthdi=1
+        anch='ne'
+        supl=0
+        for i in range(col-1,-1,-1):
+            widthdi+=cases[lig][i].cget('width')
+            if widthdi>=widthd:
+                break
+        else:
+            anch='nw'
+            supl=cases[lig][col].winfo_width()
+    frr.place(x=cases[lig][col].winfo_x()+supl,y=0,anchor=anch)
+    langs_var=StringVar(value=langs)
+    listbox=Listbox(frr,listvariable=langs_var,width=widthd,height=len(langs),selectmode='multiple')
+    for i in x.split(';'):
+        try:
+            listbox.select_set(langs.index(i))
+        except:
+            pass
+    listbox.grid(column=1,row=0,sticky='ns')
+    if len(langs)>30:
+        scrollbar=Scrollbar(frr,orient='vertical',command=listbox.yview)
+        listbox['yscrollcommand'] = scrollbar.set
+        if anch=='ne':
+            scrollbar.grid(column=0,row=0,sticky='ns')
+        else:
+            scrollbar.grid(column=2,row=0,sticky='ns')
+    listbox.bind('<<ListboxSelect>>', items_selected)
+def rightclick(event):
+    global fr,scrollbar,listbox,listok,frr,frrm,focpass,listbox2
+    print('rightclick')
+    erlist()
+    focusf(event)
+    cases[lig][col].focus_set()
+    rightclickf()
+bu0=Button(canv,text=0,width=2,name='0',command=lambda:lsel(0))
+bu0.grid(row=ligne,column=0)
+bu0.bind("<Button-3>",rightclickn)
+cases=[[]]
+for i in range(ncol):
+    cases[0].append(Text(canv,width=20,height=1,name=f'0:{i}'))
+    cases[0][-1].grid(row=1,column=i+1)
+    if b:
+        cases[0][-1].insert(END,save[fn][0][i])
+    cases[0][-1].bind("<Button-1>",focus)
+    cases[0][-1].bind("<Button-3>",rightclick)
+    cases[0][-1].bind("<Key>",edit)
+exec(f'bu=Button(fr,text=1,name="1",command=lambda:lsel(1))')
+bu.grid(row=ligne,column=0)
+bu.bind("<Button-3>",rightclickn)
+cases.append([])
+for i in range(ncol):
+    cases[1].append(Text(fr,width=20,height=1,name=f'1:{i}'))
+    cases[1][-1].grid(row=ligne,column=i+1)
+    if b>1:
+        cases[1][-1].insert(END,save[fn][1][i])
+    cases[1][-1].bind("<Button-1>",focus)
+    cases[1][-1].bind("<Button-3>",rightclick)
+    cases[1][-1].bind("<Key>",edit)
+for ligne in range(2,b):
+    exec(f'bu=Button(fr,text=ligne,name=str(ligne),command=lambda:lsel({ligne}))')
+    bu.grid(row=ligne,column=0)
+    bu.bind("<Button-3>",rightclickn)
+    cases.append([])
+    for i in range(ncol):
+        cases[ligne].append(Text(fr,width=20,height=1,name=f'{ligne}:{i}'))
+        cases[ligne][-1].grid(row=ligne,column=i+1)
+        cases[ligne][-1].insert(END,save[fn][ligne][i])
+        cases[ligne][-1].bind("<Button-1>",focus)
+        cases[ligne][-1].bind("<Button-3>",rightclick)
+        cases[ligne][-1].bind("<Key>",edit)
+cases[0].append(Text(canv0,width=max([20]+[len(i)for i in save.keys()]),height=max([i.count('/n')for i in save.keys()])+1,name=f'0:{ncol}'))
+cases[0][-1].grid(row=0,column=0)
+cases[0][-1].insert(END,fn)
+cases[0][-1].bind("<Button-1>",focus)
+cases[0][-1].bind("<Button-3>",rightclick)
+cases[0][-1].bind("<Key>",edit)
+cases[1][0].focus_set()
+cases[1][0].mark_set("insert", "1."+END)
+cases[1][0].config(bg='gray')
+print('searchi',searchi)
+adjust_size_chg()
+if searchi[fn]:
+    calpos(searchi[fn][0])
+shift=False
+ecarti=ecart
+marge=2
+exo=0
+comb=[]
+vid=0
+nv=-1
+ln=[f'<{x}>'for x in range(97,106)]
+class AsyncZip3(threading.Thread):
+    def __init__(self):
+        threading.Thread.__init__(self)
+    def run(f):
+        global nv,fn,ecarti,urlligne
+        openvideo(1)
+background3 = AsyncZip3()
+def finish(event):
+    background3.start()
+vol=100
+vlc_instance = vlc.Instance(['--video-on-top'])
+vlc_instance = vlc.Instance()
+def openvideo(dnv):
+    global nv,i2l,player,audio,ecarti,b,vol,vlc_instance
+    if nv+dnv<0 or nv+dnv>=leni2l[fn]:
+        return 0
+    if dnv>0:
+        for i in range(dnv+ecart-1):
+            if i2l[fn][nv+i]in a_v:
+                name='a'+save[fn][i2l[fn][nv+i]][2:]+'.mp4'
+                if name not in li:
+                    return 0
+                a_v.remove(i2l[fn][nv+i])
+    nv+=dnv
+    if not i.startswith('a'):
+        i=save[fn][i2l[fn][nv]][url]
+        if i[8]=='e':
+            name='e'+i.rsplit('videos/',1)[1].rsplit('?',1)[0]+'.mp4'
+        else:
+            name='y'+i.split('&',1)[0].split('?v=',1)[1]+'.mp4'
+    player2 = vlc_instance.media_player_new()
+    media = vlc_instance.media_new('videos/'+name)
+    player2.set_media(media)
+    player2.audio_set_volume(vol)
+    player2.toggle_fullscreen()
+    events = player2.event_manager()
+    events.event_attach(vlc.EventType.MediaPlayerEndReached,finish)
+    player2.play()
+    t.sleep(.5)
+    try:
+        player.stop()
+    except:
+        pass
+    player=player2
+def startvid():
+    global key,exo,comb,shift,key,lim,nv,i2l,vid,player,ln,ecart,vol,audio,fn
+    nvi=''
+    for k in comb:
+        if k in ln:
+            nvi+=str(ln.index(k))
+            break
+    for i in range(10):
+        if f'<{i+97}>'not in nvi and keyboard.is_pressed(str(i)):
+            nvi+=str(ln.index(k))
+    if nvi:
+        if nvi=='0':
+            nvi=1
+        elif nvi[0]=='0':
+            nvi=int(nvi[1:]+'0')
+        else:
+            nvi=int(nvi)
+    else:
+        nvi=1
+    if openvideo(nvi)==0:
+        vid=0
+    else:
+        vid=1
+class AsyncZip4(threading.Thread):
+    def __init__(self):
+        threading.Thread.__init__(self)
+    def run(self):
+        global key,exo,comb,shift,key,lim,nv,i2l,vid,player,ln,ecart,vol,audio,fn,vidbut
+        k=str(key)
+        if k not in comb:
+            comb.append(k)
+        if 'Key.shift'in comb or keyboard.is_pressed('shift'):
+            shift=not shift
+        elif "'f'"in comb and "'w'"in comb and "'x'"in comb:
+            exo=1
+        elif vid==0:
+            if "'w'"in comb and"'x'"in comb and"'c'"in comb:
+                startvid()
+        else:
+            if'Key.up'in comb:
+                if len(comb)>1:
+                    for k in comb:
+                        if k=='<96>':
+                            vol=100
+                            break
+                        if k in ln:
+                            vol=(ln.index(k)+1)*10
+                            break
+                    else:
+                        vol+=1
+                else:
+                    vol+=1
+                player.audio_set_volume(vol)
+            elif'Key.down'in comb:
+                if len(comb)>1:
+                    for k in comb:
+                        if k=='<96>':
+                            vol=100
+                            break
+                        if k in ln:
+                            vol=(ln.index(k)+1)*10
+                            break
+                    else:
+                        vol-=1
+                else:
+                    vol-=1
+                player.audio_set_volume(vol)
+            elif'Key.right'in comb:
+                if"'w'"in comb:
+                    if len(comb)==2:
+                        openvideo(1)
+                    else:
+                        for k in comb:
+                            if k in ln:
+                                openvideo(ln.index(k))
+                                break
+                        else:
+                            openvideo(1)
+                else:
+                    if len(comb)>1:
+                        for k in comb:
+                            if k in ln:
+                                sett=1000*(ln.index(k)+1)
+                                break
+                        else:
+                            sett=5000
+                    else:
+                        sett=5000
+                    player.set_time(player.get_time()+sett)
+            elif'Key.left'in comb:
+                if"'w'"in comb:
+                    if len(comb)==2:
+                        openvideo(-1)
+                    else:
+                        for k in comb:
+                            if k in ln:
+                                openvideo(-ln.index(k))
+                                break
+                        else:
+                            openvideo(-1)
+                else:
+                    if len(comb)>1:
+                        for k in comb:
+                            if k in ln:
+                                sett=1000*(ln.index(k)+1)
+                                break
+                        else:
+                            sett=5000
+                    else:
+                        sett=5000
+                    player.set_time(player.get_time()-sett)
+            elif comb==['Key.esc']:
+                player.stop()
+                vid=0
+                nv-=1
+            elif vid==1:
+                if comb==['Key.space']:
+                    player.pause()
+                    vid=2
+            elif comb==['Key.space']:
+                player.play()
+                vid=1
+def on_press(k):
+    global key,background4,exo
+    if exo:
+        return False
+    key=k
+    try:
+        background4.join()
+    except:
+        1
+    background4 = AsyncZip4()
+    background4.start()
+def on_release(k):
+    global comb,background4
+    try:
+        background4.join()
+    except:
+        1
+    comb=[]
+    shift=False
+class AsyncZip(threading.Thread):
+    def __init__(self):
+        threading.Thread.__init__(self)
+    def run(self):
+        with Listener(on_press=on_press,on_release=on_release) as listener:
+            listener.join()
+options = Options()
+options.headless = True
+while True:
+    try:
+        driver = webdriver.Firefox(options=options)
+        break
+    except:
+        print('connection error')
+        pass
+class download(threading.Thread):
+    def __init__(self):
+        threading.Thread.__init__(self)
+    def run(self):
+        global li,athr,uf1
+        athr=True
+        while athrr:
+            t.sleep(.1)
+        while urlligne:
+            if fn in urlligne:
+                fni=fn
+            else:
+                fni=list(urlligne.keys())[0]
+            uf1=urlligne[fni][0]
+            i2thr=uf1
+            i=save[fni][uf1][url]
+            del urlligne[fni][0]
+            if not urlligne[fni]:
+                del urlligne[fni]
+            if i.startswith('a_'):
+                name='a'+i[2:]+'.mp4'
+                bisect.insort(i2l[fni],uf1)
+                if name not in li:
+                    a_v.append(uf1)
+                continue
+            elif i.startswith('https://e'):
+                name='e'+i.rsplit('videos/',1)[1].rsplit('?',1)[0]+'.mp4'
+            elif i.startswith('https://w'):
+                name='y'+i.split('&',1)[0].split('?v=',1)[1]+'.mp4'
+            else:
+                continue
+            print('urll',name,name not in li)
+            if name not in li:
+                try:
+                    athr=False
+                    if name.startswith('e'):
+                        while 1:
+                            try:
+                                driver.get(i)
+                                t.sleep(1)
+                                urle=driver.find_element_by_css_selector('video#video-player_html5_api').get_attribute('src')
+                                break
+                            except:
+                                t.sleep(1)
+                        while 1:
+                            try:
+                                request.urlretrieve(urle,'videos/i_'+name)
+                                break
+                            except:
+                                raise
+                        os.rename('videos/i_'+name,'videos/'+name)
+                    else:
+                        try:
+                            os.remove('videos/i_'+name)
+                            li.remove('i_'+name)
+                        except:
+                            pass
+                        video = YouTube(i).streams
+                        try:
+                            videov = video.filter(only_video=True,res="1080p",mime_type="video/mp4")[0]
+                        except:
+                            try:
+                                videov = video.filter(only_video=True,res="720p",mime_type="video/mp4")[0]
+                            except:
+                                videov = video.filter(only_video=True,res="480p",mime_type="video/mp4")[0]
+                        videov.download(output_path='videos',filename='vid_'+name+'.mp4')
+                        videov = video.filter(only_audio=True)[0]
+                        videov.download(output_path='videos',filename='audio_'+name+'.mp4')
+                        input_video = ffmpeg.input('videos/vid_'+name+'.mp4')
+                        input_audio = ffmpeg.input('videos/audio_'+name+'.mp4')
+                        ffmpeg.concat(input_video, input_audio, v=1, a=1).output('videos/i_'+name).run()
+                        os.rename('videos/i_'+name,'videos/'+name)
+                        os.remove('videos/vid_'+name+'.mp4')
+                        os.remove('videos/audio_'+name+'.mp4')
+                    athr=True
+                    while athrr:
+                        t.sleep(.1)
+                    if uf1=='e':
+                        os.remove('videos/'+name)
+                    else:
+                        bisect.insort(i2l[fni],uf1)
+                        li.append(name)
+                except Exception as ins:
+                    athr=True
+                    while athrr:
+                        t.sleep(.1)
+                    print('error :',ins)
+            else:
+                bisect.insort(i2l[fni],uf1)
+            print('url fini')
+        uf1=False
+        athr=False
+        if suppp:
+            supp()
+        else:
+            athr=False
+a_v=[]
+uf1=False
+savek=save.keys()
+lim={i:-1 for i in savek}
+urlligne={i:list(range(len(save[i])))for i in savek}
+i2l={i:[]for i in savek}
+leni2l={i:0 for i in savek}
+athr=False
+athrr=False
+li=os.listdir('videos')
+suppp=False
+def supp():
+    for fni in i2l:
+        for j in i2l[fni]:
+            i=save[fni][int(j)][url]
+            if i.startswith('a_'):
+                name='a'+i[2:]+'.mp4'
+            elif i.startswith('https://e'):
+                name='e'+i.rsplit('videos/',1)[1].rsplit('?',1)[0]+'.mp4'
+            elif i.startswith('https://w'):
+                name='y'+i.split('&',1)[0].split('?v=',1)[1]+'.mp4'
+            else:
+                continue
+            try:
+                li.remove(name)
+            except:
+                pass
+    for i in li:
+        print('supprimer!!!!!!!!',i)
+        """try:
+            os.remove('videos/'+i)
+        except:
+            shutil.rmtree('videos/'+i)"""
+    with open('savetri.txt','wb') as fp:
+        pickle.dump((save,rem,remv,fn,searchi),fp)
+can.create_window(0, 0,window=fr)
+fr.update_idletasks()
+can.config(scrollregion=can.bbox("all"))
+can.yview('moveto',0)
+xviewf('moveto',0)
+def _on_mousewheel(event):
+    scrollf('scroll',int(-1*(event.delta/120)), "units")
+can.bind_all("<MouseWheel>",_on_mousewheel)
+fen.geometry(f'{sum([i.winfo_width()for i in canv.winfo_children()[:-1]])+50}x{fen.winfo_screenheight()-60}+0+0')
+bdownload = download()
+bdownload.start()
+background = AsyncZip()
+background.start()
+fen.mainloop()
+driver.quit()
+suppp=True
+if not bdownload.is_alive():
+    supp()
